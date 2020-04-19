@@ -25,7 +25,6 @@ func WriteFile(document []byte, u *URL) {
 		folderPath = fmt.Sprintf("data/%s%s", u.Hostname, folder)
 		filename = fmt.Sprintf("data/%s%s(%s)", u.Hostname, u.Path, timePostfix)
 	}
-
 	zap.S().Debugf("Making folder %s", folderPath)
 	err := os.MkdirAll(folderPath, 0700)
 	if err != nil {

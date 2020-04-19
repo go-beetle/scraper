@@ -14,41 +14,48 @@ type ScraperItem struct {
 }
 
 // A PriorityQueue implements heap.Interface and holds Items.
-type PriorityQueue []*ScraperItem
+type PriorityQueue struct {
+	queue []*ScraperItem
+	contains map[string]struct{}
+}
 
-func (pq PriorityQueue) Len() int { return len(pq) }
+func (pq PriorityQueue) Len() int { return len(pq.queue) }
 
 func (pq PriorityQueue) Less(i, j int) bool {
-	return pq[i].ScrapeTime < pq[j].ScrapeTime
+	return pq.queue[i].ScrapeTime < pq.queue[j].ScrapeTime
 }
 
 func (pq PriorityQueue) Swap(i, j int) {
-	pq[i], pq[j] = pq[j], pq[i]
+	pq.queue[i], pq.queue[j] = pq.queue[j], pq.queue[i]
 }
 
 func (pq *PriorityQueue) Push(x interface{}) {
 	item := x.(*ScraperItem)
-	*pq = append(*pq, item)
+	pq.queue = append(pq.queue, item)
 }
 
 func (pq *PriorityQueue) Pop() interface{} {
-	old := *pq
+	old := pq.queue
 	n := len(old)
 	item := old[n-1]
 	old[n-1] = nil  // avoid memory leak
-	*pq = old[0 : n-1]
+	pq.queue = old[0 : n-1]
 	return item
 }
 
 func InitPQSeed(urls []*ScraperItem) PriorityQueue {
-	pq := make(PriorityQueue, len(urls))
+	pq := PriorityQueue{
+		queue:    make([]*ScraperItem, len(urls)),
+		contains: make(map[string]struct{}),
+	}
 	now := time.Now().UnixNano()
 	for i, u := range urls {
-		pq[i] = &ScraperItem{
+		pq.queue[i] = &ScraperItem{
 			Url:                       u.Url,
 			ScrapeTime:                now,
 			ScrapeIntervalNanoseconds: u.ScrapeIntervalNanoseconds,
 		}
+		pq.contains[u.Url.String()] = struct{}{}
 	}
 	heap.Init(&pq)
 	return pq
@@ -56,7 +63,7 @@ func InitPQSeed(urls []*ScraperItem) PriorityQueue {
 
 // Sleep until the current time is less than the time on the prioritized item
 func (pq *PriorityQueue) PeekScraperItemAndUpdate() *ScraperItem {
-	last := (*pq)[0]
+	last := pq.queue[0]
 	timeNow := time.Now().UnixNano()
 
 	if timeNow < last.ScrapeTime {
@@ -77,11 +84,14 @@ func (pq *PriorityQueue) PeekScraperItemAndUpdate() *ScraperItem {
 func (pq *PriorityQueue) AddURLs(urls []*URL, from *ScraperItem) {
 	timeNow := time.Now().UnixNano()
 	for _, u := range urls {
-		item := &ScraperItem{
-			Url:                       u,
-			ScrapeTime:                timeNow,
-			ScrapeIntervalNanoseconds: from.ScrapeIntervalNanoseconds,
+		if _, ok := pq.contains[u.String()]; !ok {
+			item := &ScraperItem{
+				Url:                       u,
+				ScrapeTime:                timeNow,
+				ScrapeIntervalNanoseconds: from.ScrapeIntervalNanoseconds,
+			}
+			pq.contains[u.String()] = struct{}{}
+			heap.Push(pq, item)
 		}
-		heap.Push(pq, item)
 	}
 }

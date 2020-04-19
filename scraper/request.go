@@ -11,7 +11,7 @@ func Get(url string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	zap.S().Debugf("Code: %s\t URL: %s", resp.Status, url)
+	zap.S().Infof("Code: %s\t URL: %s", resp.Status, url)
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	return body, err
