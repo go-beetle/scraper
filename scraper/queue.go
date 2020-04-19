@@ -6,33 +6,28 @@ import (
 	"time"
 )
 
-// An Item is something we manage in a scrapeTime queue.
-type Item struct {
-	url                   string // The url of the item; arbitrary.
-	scrapeTime            int    // The scrapeTime of the item in the queue.
-	scrapeIntervalSeconds int
-	index                 int // The index is needed by update and is maintained by the heap.Interface methods, Index in the heap
+// An Url is something we manage in a ScrapeTime queue.
+type Url struct {
+	Url                   string // The Url of the item; arbitrary.
+	ScrapeTime            int    // The ScrapeTime of the item in the queue.
+	ScrapeIntervalSeconds int
 }
 
 // A PriorityQueue implements heap.Interface and holds Items.
-type PriorityQueue []*Item
+type PriorityQueue []*Url
 
 func (pq PriorityQueue) Len() int { return len(pq) }
 
 func (pq PriorityQueue) Less(i, j int) bool {
-	return pq[i].scrapeTime < pq[j].scrapeTime
+	return pq[i].ScrapeTime < pq[j].ScrapeTime
 }
 
 func (pq PriorityQueue) Swap(i, j int) {
 	pq[i], pq[j] = pq[j], pq[i]
-	pq[i].index = i
-	pq[j].index = j
 }
 
 func (pq *PriorityQueue) Push(x interface{}) {
-	n := len(*pq)
-	item := x.(*Item)
-	item.index = n
+	item := x.(*Url)
 	*pq = append(*pq, item)
 }
 
@@ -41,22 +36,22 @@ func (pq *PriorityQueue) Pop() interface{} {
 	n := len(old)
 	item := old[n-1]
 	old[n-1] = nil  // avoid memory leak
-	item.index = -1 // for safety
 	*pq = old[0 : n-1]
 	return item
 }
 
 // Sleep until the current time is less than the time on the prioritized item
-func (pq *PriorityQueue) PeekAndIncrement() string {
-	last := pq[len(pq)-1]
+func (pq *PriorityQueue) GetNextUrl() string {
+	last := (*pq)[0]
 	timeNow := int(time.Now().Unix())
 
-	if timeNow < last.scrapeTime {
-		t := last.scrapeTime - timeNow
+	if timeNow < last.ScrapeTime {
+		t := last.ScrapeTime - timeNow
 		zap.S().Debugf("Sleeping for %d seconds", t)
 		time.Sleep(time.Duration(t) * time.Second)
 	}
 
-	last.scrapeTime += last.scrapeIntervalSeconds
-	return last.url
+	last.ScrapeTime = last.ScrapeIntervalSeconds + timeNow
+	heap.Fix(pq, 0)
+	return last.Url
 }
