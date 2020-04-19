@@ -1,11 +1,12 @@
 package main
 
 import (
-	"container/heap"
+	"fmt"
 	"github.com/go-beetle/scraper/scraper"
+	"github.com/yosssi/gohtml"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"time"
+	"os"
 )
 
 func initZapLog() {
@@ -21,23 +22,32 @@ func initZapLog() {
 func main() {
 	initZapLog()
 	// Some items and their priorities.
-	now := int(time.Now().Unix())
-	items := map[string]int{
-		"google.com": now, "facebook.com": now+1, "reddit.com": now+2,
+	urls := []*scraper.ScraperItem{
+		{
+			Url:                       &scraper.URL{"worldometers.info", "/"},
+			ScrapeIntervalNanoseconds: 5 * 1e9,
+		},
 	}
 
-	pq := make(scraper.PriorityQueue, len(items))
-	i := 0
-	for value, priority := range items {
-		pq[i] = &scraper.Url{
-			Url:    value,
-			ScrapeTime: priority,
-			ScrapeIntervalSeconds: 5,
-		}
-		i += 1
-	}
-	heap.Init(&pq)
+	pq := scraper.InitPQSeed(urls)
+
 	for {
-		zap.S().Debugf("Got URL %s", pq.GetNextUrl())
+		scraperItem := pq.PeekScraperItemAndUpdate()
+		url := scraperItem.Url
+		zap.S().Debugf("Got URL %s", url)
+
+		body, err := scraper.Get(url.String())
+		if err != nil {
+			zap.S().Error("Error with scraper get url")
+		}
+
+		hrefs := scraper.GetHref(string(body), url)
+		zap.S().Debugf("Processed %s found %d links", url, len(hrefs))
+		if len(hrefs) == 0 {
+			fmt.Println(gohtml.Format(string(body)))
+			os.Exit(1)
+		}
+		pq.AddURLs(hrefs, scraperItem)
+		scraper.WriteFile(body, url)
 	}
 }
