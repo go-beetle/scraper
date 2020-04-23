@@ -28,6 +28,10 @@ func (u *URL) String() string {
 	return fmt.Sprintf("http://%s%s/", u.Hostname, u.Path)
 }
 
+func (u *URL) Concat() string {
+	return fmt.Sprintf("%s%s", u.Hostname, u.Path)
+}
+
 var url_blacklist = []string{
 	"javascript:void(0)",
 }

@@ -20,12 +20,12 @@ func WriteFile(document []byte, u *URL) {
 
 	} else {
 		suburls := strings.Split(u.Path, "/")
-		folder := strings.Join(suburls[:len(suburls)-2], "/")
+		folder := strings.Join(suburls[:len(suburls)-1], "/")
 
 		folderPath = fmt.Sprintf("data/%s%s", u.Hostname, folder)
 		filename = fmt.Sprintf("data/%s%s(%s)", u.Hostname, u.Path, timePostfix)
 	}
-	zap.S().Debugf("Making folder %s", folderPath)
+	zap.S().Debugf("Making folder if not made already %s", folderPath)
 	err := os.MkdirAll(folderPath, 0700)
 	if err != nil {
 		zap.S().Warnf("Make director error %v", err)
